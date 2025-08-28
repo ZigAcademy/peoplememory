@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Memory Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #EDF3F9;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      margin: 0;
+      padding: 20px;
+      position: relative;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .stats {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 10px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      perspective: 1000px;
+    }
+
+    .card-inner {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-front,
+    .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-front {
+      background-color: white;
+      border: 4px solid #1F59FF;
+    }
+
+    .card-front img {
+      width: 80%;
+      height: auto;
+      opacity: 0.8;
+    }
+
+    .card-back {
+      background-color: white;
+      transform: rotateY(180deg);
+    }
+
+    .card-back img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .logo {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 80px;
+      height: auto;
+      opacity: 0.9;
+    }
+
+    .message {
+      text-align: center;
+      font-size: 1.5em;
+      margin-top: 20px;
+    }
+
+    .reset-button {
+      display: block;
+      margin: 10px auto;
+      padding: 10px 20px;
+      font-size: 1em;
+      background-color: #1F59FF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    @media (max-width: 600px) {
+      .game-board {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Memory Game</h1>
+
+  <div class="stats">
+    Tijd: <span id="timer">0</span> sec |
+    Pogingen: <span id="attempts">0</span>
+  </div>
+
+  <div class="game-board" id="gameBoard"></div>
+
+  <button class="reset-button" onclick="resetGame()">Opnieuw beginnen</button>
+
+  <div class="message" id="message"></div>
+
+  <img src="logo.png" alt="Logo" class="logo">
+
+  <script>
+    const people = ['Anton', 'Stephanie', 'Gabrielle', 'Gerbert', 'Kobbe', 'Jarno'];
+
+    let deck = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let attempts = 0;
+    let timer = 0;
+    let timerInterval;
+
+    const gameBoard = document.getElementById('gameBoard');
+    const timerDisplay = document.getElementById('timer');
+    const attemptsDisplay = document.getElementById('attempts');
+    const messageDisplay = document.getElementById('message');
+
+    function createDeck() {
+      return people.flatMap(name => [
+        { id: name, image: `${name}1.jpg` },
+        { id: name, image: `${name}2.png` }
+      ]);
+    }
+
+    function shuffle(array) {
+      return array.sort(() => Math.random() - 0.5);
+    }
+
+    function startTimer() {
+      timer = 0;
+      timerDisplay.textContent = timer;
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timer++;
+        timerDisplay.textContent = timer;
+      }, 1000);
+    }
+
+    function resetGame() {
+      deck = shuffle(createDeck());
+      gameBoard.innerHTML = '';
+      flippedCards = [];
+      matchedPairs = 0;
+      attempts = 0;
+      attemptsDisplay.textContent = attempts;
+      messageDisplay.textContent = '';
+      clearInterval(timerInterval);
+      startTimer();
+      renderBoard();
+    }
+
+    function renderBoard() {
+      deck.forEach(cardData => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.id = cardData.id;
+
+        const cardInner = document.createElement('div');
+        cardInner.classList.add('card-inner');
+
+        // BACK: foto (persoon) - pas zichtbaar bij klikken
+        const cardBack = document.createElement('div');
+        cardBack.classList.add('card-back');
+        const backImg = document.createElement('img');
+        backImg.src = cardData.image;
+        cardBack.appendChild(backImg);
+
+        // FRONT: witte kaart met blauwe rand en logo
+        const cardFront = document.createElement('div');
+        cardFront.classList.add('card-front');
+        const frontImg = document.createElement('img');
+        frontImg.src = 'logo.png';
+        cardFront.appendChild(frontImg);
+
+        cardInner.appendChild(cardFront);
+        cardInner.appendChild(cardBack);
+        card.appendChild(cardInner);
+
+        card.addEventListener('click', () => {
+          if (
+            card.classList.contains('flipped') ||
+            flippedCards.length === 2
+          ) return;
+
+          card.classList.add('flipped');
+          flippedCards.push(card);
+
+          if (flippedCards.length === 2) {
+            attempts++;
+            attemptsDisplay.textContent = attempts;
+            const [first, second] = flippedCards;
+
+            if (first.dataset.id === second.dataset.id) {
+              flippedCards = [];
+              matchedPairs++;
+              if (matchedPairs === people.length) {
+                clearInterval(timerInterval);
+                messageDisplay.textContent = `🎉 Je hebt gewonnen in ${attempts} pogingen en ${timer} seconden!`;
+              }
+            } else {
+              setTimeout(() => {
+                first.classList.remove('flipped');
+                second.classList.remove('flipped');
+                flippedCards = [];
+              }, 1000);
+            }
+          }
+        });
+
+        gameBoard.appendChild(card);
+      });
+    }
+
+    // Start spel bij laden
+    resetGame();
+  </script>
+</body>
+</html>
